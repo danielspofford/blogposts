@@ -12,54 +12,50 @@ securely communicating to and from them, and taking action based on their
 messages.
 
 Elixir is a functional language well suited for maintainable, low-latency, and
-fault-tolerant systems. It runs on the Erlang VM which allows it to leverage
-decades of production battle-testing and libraries.
+fault-tolerant systems. It runs on the Erlang VM which has decades of history
+enabling long running remote devices.
 
 Nerves is the combination of a platform, a framework, and tooling, where the
 output is the ability to "craft and deploy bulletproof embedded software in
 Elixir".
 
-NervesHub is written in Elixir by the Nerves core team, though both are open
-source and contributed to by many others as well. It facilitate secure and
-dynamic OTA firmware updates for embedded devices. Keep in mind it is a managed
-service, but it can be managed privately as well, and there is a host of
-Elixir libraries under the umbrella of Nerves/NervesHub that one may leverage on
-an IoT device.
+NervesHub facilitates secure and dynamic OTA firmware updates for embedded
+devices. It is a managed service but it can be hosted privately, and there are
+a variety of other Elixir libraries under the NervesHub namespace.
 
 ## General Management
 
 ### AWS IoT Core
 
-AWS IoT Core manages the CRUD of many important pieces of the IoT puzzle
-including but not limited to: Things, Types, Thing Groups, Billing Groups, and
-Jobs. The most fundamental piece is a Thing, which is the AWS term for some IoT
-device. A Thing could be a doorbell, a camera, a thermometer, or in reality,
-anything. These Things allow you to manage and take certain actions even when a
-Thing is not currently online. For example, leveraging Device Shadows allows you
-to read the last known state of a Thing and even edit it, so that the next time
-that Thing comes online it could respect those changes.
+AWS IoT Core manages many resources fundamental to operating an IoT deployment.
+These include but are not limited to: Things, Types, Thing Groups, Billing
+Groups, and Jobs. A Thing is the AWS term for some IoT device, it could be a
+doorbell, a camera, a thermometer, or in reality, anything. These Things allow
+you to manage and take certain actions even when a Thing is not currently
+online. For example, Device Shadows allow you to read the last known state of a
+Thing and even edit it, so that the next time that Thing comes online it could
+respect those changes.
 
-Types are just categories of Things, Thing Groups are as they sound but
-critically they allow you to attach policies and configure logging options at
-the Group instead of Thing level. Billing Groups are similar to Thing Groups,
-but can be associated with tags which facilitates categorization and tracking of
-IoT related costs. Finally, Jobs are essentially a remote command that will be
-interpretted by one or many Things, but with bells and whistles. Jobs can be
-scheduled, applied to Thing Groups, or rolled out in stages. All throughout a
-Thing starting, working on, and finishing a Job, it will report its progress to
-AWS IoT.
+Types are just categories of Things, Thing Groups allow you to attach policies
+and configure logging options at the Group instead of Thing level. Billing
+Groups are similar to Thing Groups, but can be associated with tags which
+facilitates categorization and tracking of IoT related costs. Finally, Jobs are
+essentially a remote command that will be interpretted by one or many Things,
+but with bells and whistles. Jobs can be scheduled, applied to Thing Groups, or
+rolled out in stages. Things report the status of a Job when starting or
+stopping it.
 
 ### NervesHub
 
-NervesHub manages the CRUD of many important pieces of the secure over-the-air
-(OTA) firmware update puzzle including but not limited to: Products, Devices,
-Firmwares, and Deployments. At the time of writing, a Product is a name that
-acts as grouping for Devices, Firmwares, and Deployments. A Device in NervesHub
-is conceptually analagous to a Thing in AWS IoT. It has a name, is associated
-with a device key and certificate (though NervesHub is only ever privy to the
-certificate), and it can be assigned tags. A Firmware is a signed chunk of
-binary information associated with some metadata like version, VCS identifier,
-author, time-to-live, etc.
+NervesHub manages resources similar to AWS IoT Core, but with more of an
+emphasis on secure over-the-air (OTA) firmware updates. This includes: Products,
+Devices, Firmwares, and Deployments. A Product is a name that acts as grouping
+for Devices, Firmwares, and Deployments. A Device in NervesHub is conceptually
+analagous to a Thing in AWS IoT. It has a name, is associated with a device key
+and certificate (though NervesHub is only ever privy to the certificate), and it
+can be assigned tags. A Firmware is a signed chunk of binary information
+associated with some metadata like version, VCS identifier, author,
+time-to-live, etc.
 
 Deployments are where the rubber meets the road. They represent a resource that
 can be assigned a Firmware, tags, and version requirements among other things.
@@ -71,7 +67,7 @@ upgrade path for Devices.
 
 ### AWS IoT Core
 
-The communication protocol of choice between Things and Iot AWS Core is MQTT due
+The communication protocol of choice between Things and AWS IoT Core is MQTT due
 to its low bandwidth overhead, small code footprint on clients, and topic based
 messaging. It is worth noting that while MQTT has 3 QoS levels (0, 1, 2), AWS
 IoT only supports 0 and 1. Remember that Things can not only publish messsages
@@ -83,7 +79,7 @@ published to topics. This is not an inflexible configuration either, AWS IoT
 Core allows you to leverage MQTT topic wild cards like `+` and `#` to specify
 multiple topics at once. When an action is triggered you can take predefined
 actions like writing to a dynamo table, adjusting a CloudWatch alarm, or a whole
-host of other actions, but the escape hatch being invoking a lambda which allows
+host of other actions, but the escape hatch is invoking a lambda which allows
 you to do whatever you want.
 
 ### NervesHub
@@ -92,8 +88,7 @@ NervesHub and AWS IoT do not need to talk to each other, but your device does
 need to talk to NervesHub. For this you can leverage the Elixir library
 aptly named `NervesHub`. This will allow your device to maintain a websocket
 connection to the NervesHub service to allow real-time pushes of firmware and
-facilitate useful metadata like whether a device is currently online or not
-(this uses the Phoenix framework's Presence feature).
+facilitate useful metadata like whether a device is currently online or not.
 
 This always-on connection may be restrictive contextually if you have strict
 power or bandwidth concerns. In which case you simply do not leverage the
@@ -136,8 +131,8 @@ quickly find out that this is kid mode and as the number of Things scale it will
 become untenable to provision devices in this manner.
 
 At the application level the previous section mentioned the Thing would leverage
-the Tortoise library. Tortoise accepts a variety of options but worth of note is
-what the `:server` configuration option passed to a
+the Tortoise library. Tortoise accepts a variety of options but worthy of note
+is what the `:server` configuration option passed to a
 `Tortoise.Supervisor.start_child/1` call may look like:
 
 ```elixir
@@ -174,17 +169,14 @@ otherwise.
 NervesHub leverages the same security story as AWS IoT: public key cryptography
 to ensure secure communications to and from Devices. It also has a similar
 pattern of allowing you to generate device certificates and keys using a
-NervesHub CA. Keep in mind this certificate and key pair should be the same pair
-as is recognized by AWS IoT. When using the NervesHub library to talk to the
-NervesHub service it leverages the fact that the device is running on the Nerves
-platform to know where the device certificate and key are so unless you go off
-the ranch authentication is handled for you.
+NervesHub CA. This certificate and key pair should be the same pair as is
+recognized by AWS IoT. When using the NervesHub library to talk to the NervesHub
+service it leverages the fact that the device is running on the Nerves platform
+to know where the device certificate and key are, similarly if they were
+generated by a NervesHub CA, that CA cert will automatically be sent along with
+any requests.
 
 ## Just-in-Time Provisioning
-
-Just-in-Time Provisioning (JITP) solves the problem of "Oh! I need to provision
-a lot of these..." so it is what I like to call a good problem, and it even has
-a solution so maybe it's the best problem.
 
 ### AWS IoT Core
 
@@ -234,28 +226,19 @@ In order to setup JITP with NervesHub one must:
   * register a custom CA certificate.
   * ensure device certificates have an Authority Key Identifier pointing at the
     custom CA certificate.
+  * provide the customa CA certificate on request.
+  * still provide the NervesHub CA certificates.
 
 Going forward when an unprovisioned device attempts to connect to the NervesHub
 service the following will happen:
 
   * A Device will be created.
-  * A representation of the device certificate will be persisted.
+  * A DeviceCertificate will be created.
 
 At this point the device has become a Device and it can communicate with
 NervesHub.
 
-
 ## Closing Thoughts
-
-IoT software engineering and devops can seem like a lot:
-
-  * Custom hardware means circuits and wires.
-  * Embedded devices may mean power or bandwidth constraints.
-  * Low-level/niche context means fewer resources.
-  * Side effects of pushing firmware to IoT devices may include
-    am-I-going-to-brick-the-world induced anxiety.
-
-To be fair, it is a lot! However, there is no need to fret.
 
 Nerves allows one to start writing firmware quickly. Effortlessly transitioning
 from no hardware, to super early dev boards, and finally to production quality
@@ -270,12 +253,11 @@ firmware lifecycle from design to: implementation, upload to a centralized point
 of access and management, and finally to complex and dynamic distribution of
 that firmware to devices.
 
-Utilizing AWS managed service, IoT Core, lets you scale to billions of devices
-and trillions of messages effortlessly, and react to messages from your devices
-in powerful ways conveniently leveraging pre-built actions into other AWS
-services or reaching out through the invocation of a lambda to a more compelx
-series of reactions including those external to Amazon.
+AWS IoT Core lets you scale to billions of devices and trillions of messages
+effortlessly, and react to messages from your devices in powerful ways
+conveniently leveraging pre-built actions into other AWS services or reaching
+out through the invocation of a lambda to a more compelx series of reactions
+including those external to Amazon.
 
-In the end, use general software engineering best practices and know that with
-AWS IoT Core, Elixir, and Nerves it can be easy to execute agile development of
-robust, scalable software.
+Together, these tools allow productive development of robust and scalable
+software.
