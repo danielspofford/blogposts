@@ -1,27 +1,30 @@
 # AWS IoT Core, Elixir, and Nerves: A Crash Course
 
-Find out what is happening at the intersection of an IoT device management and
-pubsub service, and a fault tolerant language leveraging a powerful platform.
+Build on a solid foundation of Nerves, quickly write robust firmware in Elixir,
+and rocket through the clouds with AWS. Along the way this post will expose you
+to some of the biggest pieces of the IoT puzzle.
 
 --
 
 ## Introductions
 
-AWS IoT Core is a managed cloud service that facilitates managing devices,
-securely communicating to and from them, and taking action based on their
-messages.
+[AWS IoT Core](https://aws.amazon.com/iot-core/) is a managed cloud service that
+facilitates managing devices, securely communicating to and from them, and
+taking action based on their messages.
 
-Elixir is a functional language well suited for maintainable, low-latency, and
-fault-tolerant systems. It runs on the Erlang VM which has decades of history
-enabling long running remote devices.
+[Elixir](https://elixir-lang.org/) is a functional language that is well suited
+for maintainable, low-latency, and fault-tolerant systems. It runs on the
+[Erlang](https://www.erlang.org/) VM which has decades of history enabling long
+running remote devices.
 
-Nerves is the combination of a platform, a framework, and tooling, where the
-output is the ability to "craft and deploy bulletproof embedded software in
-Elixir".
+[Nerves](https://nerves-project.org/) is the combination of a platform, a
+framework, and tooling, where the output is the ability to "craft and deploy
+bulletproof embedded software in Elixir".
 
-NervesHub facilitates secure and dynamic OTA firmware updates for embedded
-devices. It is a managed service but it can be hosted privately, and there are
-a variety of other Elixir libraries under the NervesHub namespace.
+[NervesHub](https://www.nerves-hub.org/) facilitates secure and dynamic OTA
+firmware updates for embedded devices. It is a managed service but it can be
+hosted privately, and there are a variety of other Elixir libraries under the
+NervesHub namespace.
 
 ## General Management
 
@@ -40,8 +43,8 @@ Types are just categories of Things, Thing Groups allow you to attach policies
 and configure logging options at the Group instead of Thing level. Billing
 Groups are similar to Thing Groups, but can be associated with tags which
 facilitates categorization and tracking of IoT related costs. Finally, Jobs are
-essentially a remote command that will be interpretted by one or many Things,
-but with bells and whistles. Jobs can be scheduled, applied to Thing Groups, or
+essentially a remote command that will be interpreted by one or many Things, but
+with bells and whistles. Jobs can be scheduled, applied to Thing Groups, or
 rolled out in stages. Things report the status of a Job when starting or
 stopping it.
 
@@ -76,55 +79,63 @@ information can be pushed down to them as well.
 
 To tie off that functionality are Actions: a convenient way to react to messages
 published to topics. This is not an inflexible configuration either, AWS IoT
-Core allows you to leverage MQTT topic wild cards like `+` and `#` to specify
-multiple topics at once. When an action is triggered you can take predefined
-actions like writing to a dynamo table, adjusting a CloudWatch alarm, or a whole
-host of other actions, but the escape hatch is invoking a lambda which allows
-you to do whatever you want.
+Core allows you to leverage
+[MQTT topic wild cards](https://docs.aws.amazon.com/iot/latest/developerguide/topics.html)
+like `+` and `#` to specify multiple topics at once. When an action is triggered
+you can take predefined actions like writing to a dynamo table, adjusting a
+CloudWatch alarm, or a whole host of other actions, but the escape hatch is
+invoking a lambda which allows you to do whatever you want.
 
 ### NervesHub
 
 NervesHub and AWS IoT do not need to talk to each other, but your device does
 need to talk to NervesHub. For this you can leverage the Elixir library
-aptly named `NervesHub`. This will allow your device to maintain a websocket
-connection to the NervesHub service to allow real-time pushes of firmware and
-facilitate useful metadata like whether a device is currently online or not.
+aptly named [NervesHub](https://github.com/nerves-hub/nerves_hub). This will
+allow your device to maintain a websocket connection to the NervesHub service to
+allow real-time pushes of firmware and facilitate useful metadata like whether a
+device is currently online or not.
 
 This always-on connection may be restrictive contextually if you have strict
 power or bandwidth concerns. In which case you simply do not leverage the
 real-time features of the NervesHub service and instead opt to poll at your
 leisure. In order for your device running Elixir to speak MQTT to AWS IoT, Martin
-Gausby's Tortoise library will do the trick.
+Gausby's [Tortoise](https://github.com/gausby/tortoise) library will do the
+trick.
 
 ## Security
 
 ### AWS IoT Core
 
-AWS IoT leverages public key cryptography to ensure secure communications to and
-from Things. When a Thing initiates communication with AWS the following occurs:
+AWS IoT supports four types of identity principals for authentication:
 
-  * A TLS handshake.
-  * The server presents its certificate to the Thing.
-  * The Thing uses a root AWS cert on itself to verify the Server's certificate.
-  * The thing presents its device certificate to the Server along with a hash of
-    the conversation so far signed by its device key.
-  * The Server uses the Things public key (which was inside the Things device
-    certificate) to verify the signature on the hash the Thing provided.
+  * X.509 certificates
+  * IAM users, groups, and roles
+  * Amazon Cognito identities
+  * Federated identities
 
-At this point the Server and the Thing can trust that their communication is
-secure. Any further security beyond the boundary of the AWS cloud is managed by
-the combination of AWS IoT Policies and traditional IAM Policies. Through these
-one can dictate the particulars regarding a Things ability to connect,
-subscribe, publish, receive, etc. The same control is allowed over Actions and
-the services they interact with.
+However, we will stay within the bounds of public key cryptography as that is
+the standard with respect to communication between Devices and AWS IoT over
+MQTT. As such, AWS IoT solves both identity verification and transport security
+via the use of TLS. Typically when TLS handshakes are performed only the
+server's identity is verified such that the client can trust it. However, it is
+common in the case of IoT for the server to in turn authenticate the identity of
+the client. In this manner TLS allows both parties to trust the identity of
+each other and communicate securely. This may be referred to as mutual
+authentication, mutual TLS authentication (mTLS), or client-authenticated TLS.
+
+Any further security within the boundary of the AWS cloud is managed by the
+combination of AWS IoT Policies and traditional IAM Policies. Through these one
+can dictate the particulars regarding a Thing's ability to connect, subscribe,
+publish, receive, etc. The same control is allowed over Actions and the services
+they interact with.
 
 However, before the aforementioned security dance can occur successfully, there
-are some manual steps that must be taken within AWS IoT Core for each device who
-wishes to participate:
+are some manual steps that must be taken within AWS IoT Core for each device
+that wishes to participate:
 
-  * A Thing has been created for that device.
-  * A Certificate has been created and associated with that Thing.
-  * An AWS IoT Policy has been created and associated with that Certificate.
+  * a Thing has been created for that device
+  * a Certificate has been created and associated with that Thing
+  * an AWS IoT Policy has been created and associated with that Certificate
 
 This is fine in development and maybe in a beta-esque phase, but you will
 quickly find out that this is kid mode and as the number of Things scale it will
@@ -154,11 +165,11 @@ is what the `:server` configuration option passed to a
 The `partial_chain/1` function resolves successfully against Amazon root CAs.
 Keep in mind when connecting to AWS IoT to:
 
-  * provide the device certificate and key.
-  * Provide a set of CA certificates including:
-    * Amazon's root CA(s).
-    * the CA who signed the device certificate which may or may not be Amazon's
-      root CA.
+  * provide the device certificate and key
+  * provide a set of CA certificates including:
+    * Amazon's root CA(s)
+    * the CA that signed the device certificate which may or may not be Amazon's
+      root CA
 
 All of that done successfully, a device may connect and publish/subscribe to its
 heart's content. Or at least until it runs into an AWS IoT Policy saying
@@ -169,24 +180,26 @@ otherwise.
 NervesHub leverages the same security story as AWS IoT: public key cryptography
 to ensure secure communications to and from Devices. It also has a similar
 pattern of allowing you to generate device certificates and keys using a
-NervesHub CA. This certificate and key pair should be the same pair as is
-recognized by AWS IoT. When using the NervesHub library to talk to the NervesHub
+NervesHub CA. When using the NervesHub library to talk to the NervesHub
 service it leverages the fact that the device is running on the Nerves platform
 to know where the device certificate and key are, similarly if they were
 generated by a NervesHub CA, that CA cert will automatically be sent along with
-any requests.
+any requests. Like AWS, you must explicitly create a record of the Device
+associated with the relevant device certificate within NervesHub before it can
+authenticate successfully.
 
 ## Just-in-Time Provisioning
 
 ### AWS IoT Core
 
 Recall the security section above, the manual steps I mentioned can be
-circumvented by configuring JITP. This is done by:
+circumvented by
+[using your own certificates](https://docs.aws.amazon.com/iot/latest/developerguide/device-certs-your-own.html)
+and configuring JITP. At a high level the steps here are:
 
-  * registering a custom CA certificate.
-  * configuring that CA:
-    * to enable automatic registration.
-    * with a provisioning template.
+  * registering a custom CA certificate
+  * enable automatic registration
+  * configure a provisioning template for the CA
 
 Once this is done, the device certificate and key on a device can be created and
 signed by the custom CA in your control. The device will also need the custom
@@ -196,12 +209,12 @@ within AWS at the moment with respect to your device is the CA certificate that
 you upload once. Going forward when an unprovisioned device attempts to connect
 to AWS IoT the following occurs automatically:
 
-  * Register a Certificate and set its status to `PENDING_ACTIVE`.
-  * Create a Thing.
-  * Create a Policy.
-  * Attach the Policy to the Certificate.
-  * Attach the Certificate to the Thing.
-  * Update the Certificate status to `ACTIVE`.
+  * register a Certificate and set its status to `PENDING_ACTIVE`
+  * create a Thing
+  * create a Policy
+  * attach the Policy to the Certificate
+  * attach the Certificate to the Thing
+  * update the Certificate status to `ACTIVE`
 
 Some of the values used for the resources created in that process are influenced
 by the provisioning template we configured against the relevant custom CA. These
@@ -215,25 +228,27 @@ To get started quick NervesHub can create a certificate and key for you signed
 by a NervesHub CA, but eventually you will probably want to switch to a custom
 CA. This does a couple things for you:
 
-  * Eases manufacturing.
-  * You retain full control over the trust chain.
-  * You can use the same CA for multiple things where it makes sense.
-  * You can leverage a CA external to NervesHub, be it your own custom CA, or a
-    well known one like Amazon.
+  * eases manufacturing
+  * you retain full control over the trust chain
+  * you can use the same CA for multiple things where it makes sense, for
+    example if you wanted to leverage both AWS IoT Core and NervesHub while only
+    managing a single device certificate
+  * you can leverage a CA external to NervesHub, be it your own custom CA, or a
+    well known one like Amazon
 
 In order to setup JITP with NervesHub one must:
 
-  * register a custom CA certificate.
+  * register a custom CA certificate
   * ensure device certificates have an Authority Key Identifier pointing at the
-    custom CA certificate.
-  * provide the customa CA certificate on request.
-  * still provide the NervesHub CA certificates.
+    custom CA certificate
+  * provide the custom CA certificate on request
+  * still provide the NervesHub CA certificates
 
 Going forward when an unprovisioned device attempts to connect to the NervesHub
 service the following will happen:
 
-  * A Device will be created.
-  * A DeviceCertificate will be created.
+  * a Device will be created
+  * an associated DeviceCertificate will be created
 
 At this point the device has become a Device and it can communicate with
 NervesHub.
